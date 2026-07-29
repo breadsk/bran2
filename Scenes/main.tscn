@@ -1,7 +1,8 @@
-[gd_scene load_steps=10 format=3 uid="uid://h0vdtnwupwsh"]
+[gd_scene load_steps=13 format=3 uid="uid://h0vdtnwupwsh"]
 
 [ext_resource type="Texture2D" uid="uid://b8cnskp6xytj5" path="res://SPRITES/Player.png" id="1_61kto"]
 [ext_resource type="Script" path="res://Scripts/Player.gd" id="1_myy33"]
+[ext_resource type="Texture2D" uid="uid://6tedayotf7k6" path="res://icon.svg" id="3_w0b14"]
 
 [sub_resource type="Animation" id="Animation_8kxfc"]
 resource_name = "ATTACK"
@@ -110,6 +111,12 @@ _data = {
 "RUN": SubResource("Animation_i4slm")
 }
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_phjal"]
+size = Vector2(17, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jgv5h"]
+size = Vector2(124, 126)
+
 [node name="Main" type="Node2D"]
 
 [node name="Player" type="CharacterBody2D" parent="."]
@@ -127,7 +134,18 @@ libraries = {
 }
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+position = Vector2(-1.5, 4)
+shape = SubResource("RectangleShape2D_phjal")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(441, 345)
 zoom = Vector2(2, 2)
+
+[node name="Suelo" type="StaticBody2D" parent="."]
+position = Vector2(420, 476)
+
+[node name="Sprite2D" type="Sprite2D" parent="Suelo"]
+texture = ExtResource("3_w0b14")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Suelo"]
+shape = SubResource("RectangleShape2D_jgv5h")
