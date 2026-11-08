@@ -3,72 +3,100 @@ extends CharacterBody2D
 @onready var anims = $AnimationPlayer
 @onready var sprite = $Sprite2D
 
-
 var velocidad = 100
 var salto = 200
 var gravedad = 400
-var velocidad_dash = 350
 
-#Variables de estado para no congelar el _physics_process
+# Banderas para controlar el estado
 var haciendo_accion: bool = false
 var en_dash: bool = false
+var dash_tween: Tween = null # Referencia para controlar/cancelar el Tween
 
-#procesador de fisicas
-#es un bucle que se repita cada delta tiempo
 func _physics_process(delta):
+	# Aplicar gravedad
+	velocity.y += gravedad * delta
 	
-	velocity.y += gravedad*delta
-	#Mientras yo tenga presionada la tecla
-	if Input.is_action_pressed("derecha"):
-		velocity.x = velocidad
-	elif Input.is_action_pressed("izquierda"):
-		velocity.x = -velocidad
-	else:
-		velocity.x = 0
-		
-	if is_on_floor():
-		#solo se basta que se presione
+	# Detectar interrupciones del dash
+	if en_dash:
 		if Input.is_action_just_pressed("saltar"):
-			velocity.y = -salto
-		elif Input.is_action_just_pressed("dash"):
-			var direccion = -1 if sprite.flip_h else 1
-			
-			#1. Reproduce la animación
-			var factor_lentitud = 0.5
-			anims.play("DASH",-1,factor_lentitud)
-			
-			#2. Obtenemos el tiempo total ajustado que durará la animación
-			var duracion_real = anims.current_animation_length / factor_lentitud
-			var distancia = 80 * direccion#Pixeles que recorrera
-			
-			#3. El Tween tomará ese nuevo tiempo 'duracion_real' para avanzar
-			var tween = create_tween()
-			tween.tween_property(self,"position:x",position.x + distancia,duracion_real).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			
-			#4. Espera a que termine la animacion
-			await anims.animation_finished
-			
-			#Restablecemos la velocidad normal de las animaciones 
-			anims.speed_scale = 1.0
-			
-			
-	move_and_slide()#mover y deslizar el cuerpo
+			cancelar_dash()
+			velocity.y = -salto # Salto inmediato
+		elif Input.is_action_just_pressed("derecha") or Input.is_action_just_pressed("izquierda"):
+			cancelar_dash() # Se cancela el dash y vuelve al control normal
 
-	animaciones()
-	
-	
+	# Solo permitimos movimiento por teclado si NO está haciendo una acción (dash/ataque)
+	if not haciendo_accion:
+		if Input.is_action_pressed("derecha"):
+			velocity.x = velocidad
+		elif Input.is_action_pressed("izquierda"):
+			velocity.x = -velocidad
+		else:
+			velocity.x = 0
+			
+		if is_on_floor():
+			if Input.is_action_just_pressed("saltar"):
+				velocity.y = -salto
+			elif Input.is_action_just_pressed("dash"):
+				ejecutar_dash()
+
+	move_and_slide()
+
+	# Solo actualizamos animaciones básicas si no hay una acción especial en curso
+	if not haciendo_accion:
+		animaciones()
+
+
 func _input(event):
-	if Input.is_action_just_pressed("atacar") and is_on_floor():
-		set_physics_process(false)#modificar
-		anims.play("ATTACK")
-		await anims.animation_finished
-		set_physics_process(true)
+	if Input.is_action_just_pressed("atacar") and is_on_floor() and not haciendo_accion:
+		ejecutar_ataque()
+
+
+func ejecutar_dash():
+	haciendo_accion = true
+	en_dash = true
+	velocity.x = 0
 	
+	var direccion = -1 if sprite.flip_h else 1
+	var factor_lentitud = 0.5
+	
+	anims.play("DASH", -1, factor_lentitud)
+	
+	var duracion_real = anims.current_animation_length / factor_lentitud
+	var distancia = 80 * direccion
+	
+	# Creamos el tween y guardamos la referencia en la variable global
+	dash_tween = create_tween()
+	dash_tween.tween_property(self, "position:x", position.x + distancia, duracion_real).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	
+	await anims.animation_finished
+	
+	# Si terminó de forma natural (sin cancelarse)
+	if en_dash:
+		limpiar_estado_dash()
 
 
-#Tambien se va a ejecutar en bucle porque esta en el _physics_process
+# Función unificada para cancelar el dash de forma limpia
+func cancelar_dash():
+	if dash_tween and dash_tween.is_running():
+		dash_tween.kill()
+	limpiar_estado_dash()
+
+
+# Restaura las variables de estado
+func limpiar_estado_dash():
+	en_dash = false
+	haciendo_accion = false
+
+
+func ejecutar_ataque():
+	haciendo_accion = true
+	velocity.x = 0
+	anims.play("ATTACK")
+	await anims.animation_finished
+	haciendo_accion = false
+
+
 func animaciones():
-	
 	if velocity.x > 0:
 		sprite.flip_h = false
 		anims.play("RUN")
